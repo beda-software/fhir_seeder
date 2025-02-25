@@ -8,14 +8,14 @@ Gem::Specification.new do |spec|
   spec.authors = ['Pavel Rozhkov']
   spec.email = ['pavel.r@beda.software']
 
-  spec.summary = 'summary'
-  spec.description = 'description'
-  spec.homepage = 'http://test.com'
+  spec.summary = 'The Ruby gem to seed FHIR server with data'
+  spec.description = 'The Ruby gem to seed FHIR server with data'
+  spec.homepage = 'https://github.com/beda-software/fhir_seeder'
   spec.required_ruby_version = '>= 3.1.0'
 
   spec.metadata['homepage_uri'] = spec.homepage
-  spec.metadata['source_code_uri'] = 'http://test.com'
-  spec.metadata['changelog_uri'] = 'http://test.com'
+  spec.metadata['source_code_uri'] = 'https://github.com/beda-software/fhir_seeder'
+  spec.metadata['changelog_uri'] = 'https://github.com/beda-software/fhir_seeder'
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.

@@ -8,4 +8,6 @@ RUN bundle install
 
 RUN gem build *.gemspec && gem install *.gem
 
-ENTRYPOINT ["bundle", "exec"]
+RUN chmod +x /app/bin/seeder
+
+ENTRYPOINT ["./bin/seeder"]

@@ -16,30 +16,61 @@ module Seeder
     option :type, required: true, enum: %w[bundle seeds],
                   desc: 'Source type: bundle resource in JSON format or seeds folder with resources in JSON format'
     option :attempts, default: 1, type: :numeric, desc: 'Number of attempts to seed data'
+    option :connect_attempts_limit, default: 20, type: :numeric,
+                                    desc: 'Number of attempts to connect to the target server'
+    option :sleep, default: 10, type: :numeric, desc: 'Speep between connect attempts'
 
     def seed
-      client = FHIR::Client.new(options[:server])
-      client.default_json
-
-      if options[:username] && options[:password]
-        auth_token = Base64.strict_encode64("#{options[:username]}:#{options[:password]}")
-        client.additional_headers = { Authorization: "Basic #{auth_token}" }
-      end
-
-      bundle_data = case options[:type]
-                    when 'bundle'
-                      FHIR::Bundle.new(JSON.parse(File.read(options[:source])))
-                    when 'seeds'
-                      entries = Dir.glob(File.join(options[:source], '**', '*.json')).map do |json_file_path|
-                        { 'resource' => JSON.parse(File.read(json_file_path)) }
-                      end
-                      FHIR::Bundle.new('resourceType' => 'Bundle', 'entry' => entries)
-                    end
-
-      seed_data_from_bundle(client, bundle_data, options[:attempts])
+      client = establish_client
+      authentificate_client(client) if options[:username] && options[:password]
+      bundle = bundle_data
+      seed_data_from_bundle(client, bundle, options[:attempts])
     end
 
     private
+
+    def establish_client
+      connect_attempts = 0
+      max_attempts = options[:connect_attempts_limit]
+      sleep_time = options[:sleep]
+
+      client = FHIR::Client.new(options[:server])
+
+      loop do
+        if connect_attempts >= max_attempts
+          raise "Failed to establish connection after #{connect_attempts} attempts"
+        end
+
+        connect_attempts += 1
+        puts "Connection attempt ##{connect_attempts} of #{max_attempts}..."
+
+        begin
+          client.capability_statement
+          return client
+        rescue Errno::ECONNREFUSED => e
+          puts "Connection failed: #{e.message}. Retrying in #{sleep_time} seconds..."
+          sleep sleep_time
+        end
+      end
+    end
+
+
+    def authentificate_client(client)
+      auth_token = Base64.strict_encode64("#{options[:username]}:#{options[:password]}")
+      client.additional_headers = { Authorization: "Basic #{auth_token}" }
+    end
+
+    def bundle_data
+      case options[:type]
+      when 'bundle'
+        FHIR::Bundle.new(JSON.parse(File.read(options[:source])))
+      when 'seeds'
+        entries = Dir.glob(File.join(options[:source], '**', '*.json')).map do |json_file_path|
+          { 'resource' => JSON.parse(File.read(json_file_path)) }
+        end
+        FHIR::Bundle.new('resourceType' => 'Bundle', 'entry' => entries)
+      end
+    end
 
     def seed_data_from_bundle(client, bundle, max_attempts)
       attempts = 0
@@ -58,6 +89,9 @@ module Seeder
             puts 'Skipping entry without resource'
           end
         end
+
+        break if resources_with_problems.empty?
+
         resources_to_save = resources_with_problems
       end
     end
